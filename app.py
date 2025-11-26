@@ -1,1 +1,56 @@
-{"metadata":{"kernelspec":{"language":"python","display_name":"Python 3","name":"python3"},"language_info":{"pygments_lexer":"ipython3","nbconvert_exporter":"python","version":"3.6.4","file_extension":".py","codemirror_mode":{"name":"ipython","version":3},"name":"python","mimetype":"text/x-python"},"kaggle":{"accelerator":"none","dataSources":[],"isInternetEnabled":true,"language":"python","sourceType":"script","isGpuEnabled":false}},"nbformat_minor":4,"nbformat":4,"cells":[{"cell_type":"code","source":"# This Python 3 environment comes with many helpful analytics libraries installed\n# It is defined by the kaggle/python Docker image: https://github.com/kaggle/docker-python\n# For example, here's several helpful packages to load\n\nimport numpy as np # linear algebra\nimport pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)\n\n# Input data files are available in the read-only \"../input/\" directory\n# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory\n\nimport os\nfor dirname, _, filenames in os.walk('/kaggle/input'):\n    for filename in filenames:\n        print(os.path.join(dirname, filename))\n\n# You can write up to 20GB to the current directory (/kaggle/working/) that gets preserved as output when you create a version using \"Save & Run All\" \n# You can also write temporary files to /kaggle/temp/, but they won't be saved outside of the current session","metadata":{"_uuid":"8f2839f25d086af736a60e9eeb907d3b93b6e0e5","_cell_guid":"b1076dfc-b9ad-4769-8c92-a6c4dae69d19","trusted":true},"outputs":[],"execution_count":null}]}
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend interaction
+
+from aws_s3 import upload_file_to_s3
+import tempfile
+
+@app.route('/api/generate-avatar', methods=['POST'])
+def generate_avatar():
+    data = request.json
+    text = data.get('text')
+    avatar_params = data.get('avatarParams', {})
+
+    # Placeholder simulated generation process
+    # Generate temporary files locally (simulation)
+    temp_video = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+    temp_audio = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+    temp_video.write(b'Simulated video content')
+    temp_audio.write(b'Simulated audio content')
+    temp_video.close()
+    temp_audio.close()
+
+    # Upload to AWS S3
+    video_s3_url = upload_file_to_s3(temp_video.name, 'avatars/generated_avatar_video.mp4')
+    audio_s3_url = upload_file_to_s3(temp_audio.name, 'avatars/generated_audio.mp3')
+
+    response = {
+        "message": "Avatar generated and uploaded",
+        "text_received": text,
+        "avatar_params_received": avatar_params,
+        "video_url": video_s3_url or "",
+        "audio_url": audio_s3_url or ""
+    }
+    return jsonify(response)
+
+@app.route('/api/get-upload-url', methods=['POST'])
+def get_upload_url():
+    data = request.json
+    file_name = data.get('fileName')
+    file_type = data.get('fileType')
+
+    if not file_name or not file_type:
+        return jsonify({"error": "fileName and fileType are required"}), 400
+
+    s3_key = f"uploads/{file_name}"
+    presigned_url = generate_presigned_url(s3_key)
+
+    if presigned_url:
+        return jsonify({"uploadUrl": presigned_url, "s3Key": s3_key})
+    else:
+        return jsonify({"error": "Failed to generate upload URL"}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0')
