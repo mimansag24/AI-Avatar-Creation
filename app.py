@@ -44,5 +44,22 @@ def generate_avatar():
     }
     return jsonify(response)
 
+@app.route('/api/get-upload-url', methods=['POST'])
+def get_upload_url():
+    data = request.json
+    file_name = data.get('fileName')
+    file_type = data.get('fileType')
+
+    if not file_name or not file_type:
+        return jsonify({"error": "fileName and fileType are required"}), 400
+
+    s3_key = f"uploads/{file_name}"
+    presigned_url = generate_presigned_url(s3_key)
+
+    if presigned_url:
+        return jsonify({"uploadUrl": presigned_url, "s3Key": s3_key})
+    else:
+        return jsonify({"error": "Failed to generate upload URL"}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
