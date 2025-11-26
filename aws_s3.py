@@ -26,3 +26,17 @@ def upload_file_to_s3(file_path, s3_key):
     except ClientError as e:
         print(f"Failed to upload to S3: {e}")
     return None
+
+def generate_presigned_url(s3_key, expiration=3600):
+    try:
+        url = s3_client.generate_presigned_url(
+            'put_object',
+            Params={'Bucket': AWS_S3_BUCKET, 'Key': s3_key},
+            ExpiresIn=expiration
+        )
+        return url
+    except NoCredentialsError:
+        print("AWS credentials not available")
+    except ClientError as e:
+        print(f"Failed to generate presigned URL: {e}")
+    return None
